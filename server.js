@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const DEV_SKIP_AUTH = process.env.DEV_SKIP_AUTH === '1';
+const YT_API_KEY = process.env.YT_API_KEY || '';
 const oauth = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 const YT = { clientName: 'WEB', clientVersion: '2.20250101.00.00' };
@@ -421,18 +422,112 @@ async function fetchWatchPage(videoId) {
   };
 }
 
+const YT_CATEGORIES = {
+  1: 'Film & Animation', 2: 'Autos & Vehicles', 10: 'Music', 15: 'Pets & Animals',
+  17: 'Sports', 19: 'Travel & Events', 20: 'Gaming', 21: 'Videoblogging',
+  22: 'People & Blogs', 23: 'Comedy', 24: 'Entertainment', 25: 'News & Politics',
+  26: 'Howto & Style', 27: 'Education', 28: 'Science & Technology', 29: 'Nonprofits & Activism',
+};
+
+function timeAgo(date) {
+  const sec = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (sec < 60) return 'az once';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min + ' dakika once';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + ' saat once';
+  const day = Math.floor(hr / 24);
+  if (day < 30) return day + ' gun once';
+  const mon = Math.floor(day / 30);
+  if (mon < 12) return mon + ' ay once';
+  return Math.floor(mon / 12) + ' yil once';
+}
+
+async function ytDataApi(path, params) {
+  const u = new URL('https://www.googleapis.com/youtube/v3/' + path);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v));
+  u.searchParams.set('key', YT_API_KEY);
+  const r = await fetch(u, { signal: AbortSignal.timeout(12000) });
+  if (!r.ok) {
+    const t = await r.text().catch(() => '');
+    throw new Error('youtube api http ' + r.status + ' ' + t.slice(0, 120));
+  }
+  return r.json();
+}
+
+async function fetchViaDataApi(videoId) {
+  if (!YT_API_KEY) throw new Error('YT_API_KEY ayarli degil');
+  const vr = await ytDataApi('videos', { part: 'snippet,statistics,contentDetails', id: videoId });
+  const v = (vr.items || [])[0];
+  if (!v) throw new Error('video bulunamadi');
+
+  let comments = [];
+  try {
+    const cr = await ytDataApi('commentThreads', {
+      part: 'snippet', videoId, maxResults: 50, order: 'relevance', textFormat: 'plainText',
+    });
+    for (const t of cr.items || []) {
+      const s = t.snippet && t.snippet.topLevelComment && t.snippet.topLevelComment.snippet;
+      if (!s || !s.textDisplay) continue;
+      comments.push({
+        text: s.textDisplay,
+        author: s.authorDisplayName || '',
+        published: s.publishedAt ? timeAgo(new Date(s.publishedAt)) : '',
+        likes: typeof s.likeCount === 'number' ? s.likeCount : null,
+        replies: (t.snippet && t.snippet.totalReplyCount) || 0,
+      });
+    }
+  } catch (_) {}
+
+  let subscribers = null;
+  try {
+    const ch = await ytDataApi('channels', { part: 'statistics', id: v.snippet.channelId });
+    const st = (ch.items && ch.items[0] && ch.items[0].statistics) || {};
+    if (st.subscriberCount) subscribers = Number(st.subscriberCount);
+  } catch (_) {}
+
+  const sn = v.snippet || {};
+  const st = v.statistics || {};
+  const th = sn.thumbnails && (sn.thumbnails.maxres || sn.thumbnails.standard || sn.thumbnails.high || sn.thumbnails.medium || sn.thumbnails.default);
+
+  return {
+    title: sn.title || '',
+    channelTitle: sn.channelTitle || '',
+    channelId: sn.channelId || '',
+    description: sn.description || '',
+    tags: sn.tags || [],
+    thumbnail: (th && th.url) || 'https://i.ytimg.com/vi/' + videoId + '/maxresdefault.jpg',
+    published: sn.publishedAt ? new Date(sn.publishedAt) : new Date(),
+    views: Number(st.viewCount) || 0,
+    likes: st.likeCount != null ? Number(st.likeCount) : null,
+    subscribers,
+    durationSec: parseIsoDuration(v.contentDetails && v.contentDetails.duration),
+    comments,
+    commentWords: freqWords(comments.map((c) => c.text), 5).map((e) => e[0]),
+    category: YT_CATEGORIES[Number(sn.categoryId)] || '',
+  };
+}
+
 async function analyze(videoId) {
   let src;
+  let apiErr = '';
   try {
-    src = await fetchInnertube(videoId);
-  } catch (e1) {
+    if (YT_API_KEY) src = await fetchViaDataApi(videoId);
+  } catch (e0) {
+    apiErr = (e0 && e0.message) || 'api fail';
+  }
+  if (!src) {
     try {
-      src = await fetchWatchPage(videoId);
-    } catch (e2) {
+      src = await fetchInnertube(videoId);
+    } catch (e1) {
       try {
-        src = await fetchInvidious(videoId);
-      } catch (e3) {
-        throw new Error('video okunamadi (' + ((e2 && e2.message) || 'watch fail') + ' / ' + ((e3 && e3.message) || 'yedek fail') + ')');
+        src = await fetchWatchPage(videoId);
+      } catch (e2) {
+        try {
+          src = await fetchInvidious(videoId);
+        } catch (e3) {
+          throw new Error('video okunamadi (' + [apiErr, e1 && e1.message, e2 && e2.message, e3 && e3.message].filter(Boolean).join(' / ') + ')');
+        }
       }
     }
   }
