@@ -4,6 +4,15 @@ let pendingUrl = null;
 
 const $ = (id) => document.getElementById(id);
 
+const themeBtn = $('theme-btn');
+if (themeBtn) {
+  themeBtn.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', cur);
+    try { localStorage.setItem('vxcl_theme', cur); } catch (_) {}
+  });
+}
+
 function decodeJwt(token) {
   try {
     const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
