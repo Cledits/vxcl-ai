@@ -1,0 +1,26 @@
+# vxcl.ai
+
+> vxcl.ai — YouTube video analiz aracı. Linki yapıştırın; istatistikler, "neden tuttu" analizi, yorum incelemesi, viral an tespiti ve yapay zekâya video ürettirecek promptu saniyeler içinde alın. Ücretsiz, Google hesabıyla giriş.
+
+vxcl.ai Türkçe ve İngilizce olarak çalışır. Temel özellikler ücretsizdir.
+
+## Ana özellikler
+
+- YouTube istatistik analizi (izlenme, beğeni, yorum, abone, günlük büyüme)
+- "Neden tuttu" analizi — videonun tutunma sinyalleri madde madde
+- Yorum analizi — izleyici tepkisi ve ton
+- Viral/anlık an bulucu — en çok tepki verilen saniyeler
+- Metin-görüntü video promptu üretimi (dikey 9:16, sahne sahne)
+- İsteğe bağlı video karşılaştırma modu
+
+## Kullanım
+
+1. https://vxcl-ai.onrender.com/ adresini açın
+2. YouTube video linkini yapıştırın (Ctrl+V)
+3. "Analiz Et" deyin
+
+## Notlar
+
+- Ücretsizdir, kayıt/kredi kartı gerektirmez
+- Google hesabıyla giriş yapılır
+- API: POST /api/analyze (kimlik doğrulamalı)
