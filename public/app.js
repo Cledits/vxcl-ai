@@ -23,7 +23,15 @@ function showAccount(profile) {
 }
 
 try {
-  const saved = JSON.parse(sessionStorage.getItem('vxcl_auth') || 'null');
+  let raw = localStorage.getItem('vxcl_auth');
+  if (!raw) {
+    raw = sessionStorage.getItem('vxcl_auth');
+    if (raw) {
+      localStorage.setItem('vxcl_auth', raw);
+      sessionStorage.removeItem('vxcl_auth');
+    }
+  }
+  const saved = JSON.parse(raw || 'null');
   if (saved && saved.t) {
     idToken = saved.t;
     showAccount(saved.profile || { name: 'Hesabım', email: '' });
@@ -73,7 +81,7 @@ function onCredential(response) {
     profile = { name: p.name || p.email || 'Hesabım', email: p.email || '' };
   }
   try {
-    sessionStorage.setItem('vxcl_auth', JSON.stringify({ t: idToken, profile }));
+    localStorage.setItem('vxcl_auth', JSON.stringify({ t: idToken, profile }));
   } catch (_) {}
   showAccount(profile);
   closeModal();
@@ -109,6 +117,7 @@ $('modal-close').addEventListener('click', closeModal);
 $('logout').addEventListener('click', () => {
   idToken = null;
   try {
+    localStorage.removeItem('vxcl_auth');
     sessionStorage.removeItem('vxcl_auth');
   } catch (_) {}
   $('account').classList.add('hidden');
