@@ -47,6 +47,16 @@ try {
   }
 } catch (_) {}
 
+function addDevLogin() {
+  if (document.querySelector('.dev-login')) return;
+  $('gate-status').textContent = 'google ile giriş şu an yüklenemedi — geçici giriş modu';
+  const b = document.createElement('button');
+  b.className = 'dev-login';
+  b.textContent = 'Google ile giriş (geçici mod)';
+  b.addEventListener('click', () => onCredential({ credential: 'dev' }));
+  $('gbtn').appendChild(b);
+}
+
 fetch('/api/config')
   .then((r) => r.json())
   .then((cfg) => {
@@ -58,15 +68,11 @@ fetch('/api/config')
         });
         gisReady = true;
       });
+      if (cfg.devMode) setTimeout(() => { if (!gisReady) addDevLogin(); }, 7000);
       return;
     }
     if (cfg.devMode) {
-      $('gate-status').textContent = 'google anahtarı henüz yok — geçici giriş modu';
-      const b = document.createElement('button');
-      b.className = 'dev-login';
-      b.textContent = 'Google ile giriş (geçici mod)';
-      b.addEventListener('click', () => onCredential({ credential: 'dev' }));
-      $('gbtn').appendChild(b);
+      addDevLogin();
       return;
     }
     $('gate-status').textContent = 'GOOGLE_CLIENT_ID eksik — giriş şu an yapılamıyor';
@@ -75,9 +81,14 @@ fetch('/api/config')
     $('gate-status').textContent = 'sunucuya ulaşılamıyor';
   });
 
-function whenGis(cb) {
-  if (window.google && google.accounts && google.accounts.id) cb();
-  else setTimeout(() => whenGis(cb), 100);
+function whenGis(cb, n) {
+  n = n || 0;
+  if (window.google && google.accounts && google.accounts.id) {
+    cb();
+    return;
+  }
+  if (n > 120) return;
+  setTimeout(() => whenGis(cb, n + 1), 100);
 }
 
 function onCredential(response) {

@@ -24,6 +24,56 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+app.get('/privacy', (req, res) => {
+  res.type('html').send(`<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gizlilik Politikası — vxcl.ai</title>
+<style>
+:root{--bg:#0e0f1c;--fg:#e8eaf6;--soft:#a6adc8;--line:#23264a;--acc:#6c7bff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:56px 22px 80px}
+h1{font-size:30px;margin:0 0 6px}h1 span{color:var(--acc)}
+.date{color:var(--soft);font-size:13px;margin-bottom:34px}
+h2{font-size:19px;margin:34px 0 8px;color:var(--acc)}
+p,li{color:var(--soft)}p{margin:8px 0}
+strong{color:var(--fg)}
+a{color:var(--acc)}
+</style></head>
+<body><div class="wrap">
+<h1>Gizlilik <span>Politikası</span></h1>
+<div class="date">vxcl.ai — son güncelleme: 27 Eylül 2026</div>
+
+<p>vxcl.ai ("uygulama"), yalnızca yapıştırdığınız YouTube bağlantılarını analiz eden bir araçtır. Bu politika, uygulamanın hangi verilere nasıl davrandığını açıklar.</p>
+
+<h2>Topladığımız veriler</h2>
+<p>Uygulama <strong>kişisel veri toplamaz, saklamaz veya satmaz.</strong>:</p>
+<ul>
+<li>Giriş sırasında Google'dan aldığımız bilgi yalnızca <strong>e-posta adresiniz</strong> ve oturum doğrulaması için gereken token'dır.</li>
+<li>Analiz için girdiğiniz <strong>YouTube video bağlantıları</strong> yalnızca o an analiz edilir; kalıcı olarak kaydedilmez.</li>
+<li>Tema tercihi gibi ufak ayarlar tarayıcınızın yerel deposunda (localStorage) tutulur, sunucuya gönderilmez.</li>
+</ul>
+
+<h2>Verilerin kullanımı</h2>
+<p>Amacımız tek: verdiğiniz bağlantıyı analiz edip istatistikleri, viral anları ve prompt'ları size göstermek. Verileriniz üçüncü taraflara pazarlanmaz, reklam ağlarıyla paylaşılmaz.</p>
+
+<h2>Çerezler ve analitik</h2>
+<p>Uygulama kendi takip çerezi, reklam pikseli veya üçüncü taraf analitik kodu çalıştırmaz.</p>
+
+<h2>Google ile giriş</h2>
+<p>Giriş, Google'ın resmi OAuth 2.0 akışı üzerinden yapılır. vxcl.ai yalnızca kimliğinizi doğrular; Google hesabınızın diğer verilerine erişmez.</p>
+
+<h2>Üçüncü taraf bağlantılar</h2>
+<p>Analiz sonuçlarında YouTube'a ait bağlantılar görünür. Bu sitelerin gizlilik uygulamalarından vxcl.ai sorumlu değildir.</p>
+
+<h2>Değişiklikler</h2>
+<p>Bu sayfa güncellendiğinde tarih başlıkta değişir. Sürekli kullanıyorsanız arada bakmanız yeterli.</p>
+
+<h2>İletişim</h2>
+<p>Sorularınız için: <a href="mailto:enginsakallioglu33@gmail.com">enginsakallioglu33@gmail.com</a></p>
+</div></body></html>`);
+});
+
 app.post('/api/analyze', async (req, res) => {
   try {
     const { idToken, url } = req.body || {};
