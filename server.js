@@ -206,19 +206,36 @@ async function fetchComments(videoId) {
   return { comments: comments.slice(0, 20), topCommentWords: freqWords(comments.map((c) => c.text), 5).map((e) => e[0]) };
 }
 
-async function analyze(videoId) {
-  const player = await innertube('player', {
-    context: { client: YT },
-    videoId,
-    contentCheckOk: true,
-    racyCheckOk: true,
-  });
-  const vd = player.videoDetails;
-  if (!vd) {
-    const play = player.playabilityStatus || {};
-    const reason = play.reason || (play.messages && play.messages[0]) || 'gizli, silinmis veya kisitli olabilir';
-    throw new Error('Video okunamadi: ' + reason);
+const INVIDIOUS = [
+  'https://inv.nadeko.net',
+  'https://yewtu.be',
+  'https://invidious.nerdvpn.de',
+  'https://iv.melmac.space',
+  'https://invidious.f5.si',
+];
+
+async function innertubePlayer(videoId) {
+  const attempts = [
+    { context: { client: { clientName: 'WEB', clientVersion: '2.20250101.00.00' } }, videoId, contentCheckOk: true, racyCheckOk: true },
+    { context: { client: { clientName: 'WEB_EMBEDDED_PLAYER', clientVersion: '1.20250101.00.00', hl: 'en', gl: 'US' }, thirdParty: { embedUrl: 'https://www.youtube.com/' } }, videoId, contentCheckOk: true, racyCheckOk: true },
+    { context: { client: { clientName: 'ANDROID', clientVersion: '19.44.38', androidSdkVersion: 30, hl: 'en', gl: 'US' } }, videoId, contentCheckOk: true, racyCheckOk: true },
+    { context: { client: { clientName: 'IOS', clientVersion: '19.45.0', deviceMake: 'Apple', deviceModel: 'iPhone16,2', hl: 'en', gl: 'US' } }, videoId, contentCheckOk: true, racyCheckOk: true },
+  ];
+  let lastReason = '';
+  for (const body of attempts) {
+    try {
+      const p = await innertube('player', body);
+      if (p.videoDetails && p.videoDetails.videoId) return p;
+      const s = p.playabilityStatus || {};
+      lastReason = s.reason || (s.messages && s.messages[0]) || lastReason;
+    } catch (_) {}
   }
+  throw new Error(lastReason ? 'youtube dogrulamasi: ' + lastReason : 'youtube player yanit vermedi');
+}
+
+async function fetchInnertube(videoId) {
+  const player = await innertubePlayer(videoId);
+  const vd = player.videoDetails;
   const mf = (player.microformat && player.microformat.playerMicroformatRenderer) || {};
 
   let comments = [];
@@ -241,22 +258,102 @@ async function analyze(videoId) {
     if (sub) subscribers = parseCompact(sub.simpleText || (sub.runs || []).map((r) => r.text).join(''));
   } catch (_) {}
 
-  const views = Number(vd.viewCount) || 0;
-  const durationSec = Number(vd.lengthSeconds) || 0;
-  const published = mf.publishDate ? new Date(mf.publishDate) : new Date();
-  const daysOld = Math.max(1, (Date.now() - published.getTime()) / 86400000);
   const thumbs = (vd.thumbnail && vd.thumbnail.thumbnails) || [];
-  const thumbnail = thumbs.length ? thumbs[thumbs.length - 1].url : null;
-
-  const stats = {
-    videoId,
+  return {
     title: vd.title || '',
     channelTitle: vd.author || '',
     channelId: vd.channelId || '',
     description: vd.shortDescription || '',
     tags: vd.keywords || [],
+    thumbnail: thumbs.length ? thumbs[thumbs.length - 1].url : null,
+    published: mf.publishDate ? new Date(mf.publishDate) : new Date(),
+    views: Number(vd.viewCount) || 0,
+    likes,
+    subscribers,
+    durationSec: Number(vd.lengthSeconds) || 0,
+    comments,
+    commentWords,
+  };
+}
+
+async function fetchInvidious(videoId) {
+  let lastErr = '';
+  for (const inst of INVIDIOUS) {
+    try {
+      const r = await fetch(inst + '/api/v1/videos/' + videoId, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error('http ' + r.status);
+      const v = await r.json();
+      if (v.error) throw new Error(String(v.error));
+      if (!v.title) throw new Error('bos yanit');
+
+      let comments = [];
+      try {
+        const cr = await fetch(inst + '/api/v1/comments/' + videoId + '?sort_by=top', { signal: AbortSignal.timeout(8000) });
+        if (cr.ok) {
+          const arr = await cr.json();
+          if (Array.isArray(arr)) {
+            comments = arr
+              .filter((c) => (c.content || c.comment))
+              .slice(0, 20)
+              .map((c) => ({
+                text: c.content || c.comment || '',
+                author: c.author || '',
+                published: c.publishedText || '',
+                likes: typeof c.likeCount === 'number' ? c.likeCount : null,
+                replies: typeof c.replyCount === 'number' ? c.replyCount : 0,
+              }));
+          }
+        }
+      } catch (_) {}
+
+      const pubTs = typeof v.published === 'number' ? new Date(v.published * 1000) : new Date(v.published || Date.now());
+      return {
+        title: v.title || '',
+        channelTitle: v.author || '',
+        channelId: v.authorId || '',
+        description: v.description || '',
+        tags: v.keywords || [],
+        thumbnail: 'https://i.ytimg.com/vi/' + videoId + '/maxresdefault.jpg',
+        published: isNaN(pubTs.getTime()) ? new Date() : pubTs,
+        views: Number(v.viewCount) || 0,
+        likes: typeof v.likeCount === 'number' ? v.likeCount : null,
+        subscribers: typeof v.subCount === 'number' ? v.subCount : null,
+        durationSec: Number(v.lengthSeconds) || 0,
+        comments,
+        commentWords: freqWords(comments.map((c) => c.text), 5).map((e) => e[0]),
+      };
+    } catch (e) {
+      lastErr = String((e && e.message) || e);
+    }
+  }
+  throw new Error('video okunamadi: ' + (lastErr || 'tum yedek sunucular cevap vermedi'));
+}
+
+async function analyze(videoId) {
+  let src;
+  try {
+    src = await fetchInnertube(videoId);
+  } catch (_) {
+    src = await fetchInvidious(videoId);
+  }
+
+  const published = src.published && !isNaN(src.published.getTime()) ? src.published : new Date();
+  const daysOld = Math.max(1, (Date.now() - published.getTime()) / 86400000);
+  const views = src.views || 0;
+  const likes = src.likes;
+  const subscribers = src.subscribers;
+  const durationSec = src.durationSec || 0;
+  const comments = src.comments || [];
+
+  const stats = {
+    videoId,
+    title: src.title,
+    channelTitle: src.channelTitle,
+    channelId: src.channelId,
+    description: src.description || '',
+    tags: src.tags || [],
     publishedText: published.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }),
-    thumbnail,
+    thumbnail: src.thumbnail,
     views,
     likes,
     subscribers,
@@ -267,7 +364,7 @@ async function analyze(videoId) {
     durationText: humanDuration(durationSec),
     isShort: durationSec > 0 && durationSec <= 60,
     comments,
-    commentWords,
+    commentWords: src.commentWords || [],
     totalReplies: comments.reduce((a, c) => a + (c.replies || 0), 0),
   };
 

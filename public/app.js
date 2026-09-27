@@ -4,6 +4,32 @@ let pendingUrl = null;
 
 const $ = (id) => document.getElementById(id);
 
+function decodeJwt(token) {
+  try {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = Uint8Array.from(atob(part), (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch (_) {
+    return null;
+  }
+}
+
+function showAccount(profile) {
+  $('avatar').textContent = (profile.name || 'V').trim().charAt(0).toUpperCase();
+  $('acc-name').textContent = profile.name || 'Hesabım';
+  $('acc-email').textContent = profile.email || '';
+  $('account').classList.remove('hidden');
+  $('nav-login').classList.add('hidden');
+}
+
+try {
+  const saved = JSON.parse(sessionStorage.getItem('vxcl_auth') || 'null');
+  if (saved && saved.t) {
+    idToken = saved.t;
+    showAccount(saved.profile || { name: 'Hesabım', email: '' });
+  }
+} catch (_) {}
+
 fetch('/api/config')
   .then((r) => r.json())
   .then((cfg) => {
@@ -39,10 +65,21 @@ function whenGis(cb) {
 
 function onCredential(response) {
   idToken = response.credential;
+  let profile;
+  if (idToken === 'dev') {
+    profile = { name: 'Geçici Kullanıcı', email: 'geçici mod' };
+  } else {
+    const p = decodeJwt(idToken) || {};
+    profile = { name: p.name || p.email || 'Hesabım', email: p.email || '' };
+  }
+  try {
+    sessionStorage.setItem('vxcl_auth', JSON.stringify({ t: idToken, profile }));
+  } catch (_) {}
+  showAccount(profile);
   closeModal();
   const status = $('scan-status');
   status.className = 'status info';
-  status.textContent = 'giriş yapıldı';
+  status.textContent = 'giriş yapıldı — analiz için linki yapıştır';
   if (pendingUrl) {
     $('url').value = pendingUrl;
     pendingUrl = null;
@@ -69,6 +106,17 @@ function closeModal() {
 
 $('nav-login').addEventListener('click', openLogin);
 $('modal-close').addEventListener('click', closeModal);
+$('logout').addEventListener('click', () => {
+  idToken = null;
+  try {
+    sessionStorage.removeItem('vxcl_auth');
+  } catch (_) {}
+  $('account').classList.add('hidden');
+  $('nav-login').classList.remove('hidden');
+  const status = $('scan-status');
+  status.className = 'status info';
+  status.textContent = 'çıkış yapıldı';
+});
 $('login-modal').addEventListener('click', (e) => {
   if (e.target === $('login-modal')) closeModal();
 });
