@@ -154,6 +154,23 @@ $('scan-form').addEventListener('submit', (e) => {
   runAnalysis();
 });
 
+$('cmp-toggle').addEventListener('click', () => {
+  const inp = $('url2');
+  inp.classList.toggle('hidden');
+  if (!inp.classList.contains('hidden')) inp.focus();
+});
+
+async function analyzeOnce(url) {
+  const r = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken, url }),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Analiz başarısız.');
+  return j;
+}
+
 async function runAnalysis() {
   const btn = $('scan-btn');
   const status = $('scan-status');
@@ -164,14 +181,21 @@ async function runAnalysis() {
   $('results').classList.add('hidden');
 
   try {
-    const r = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, url: $('url').value }),
-    });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || 'Analiz başarısız.');
-    render(j);
+    const main = await analyzeOnce($('url').value);
+    render(main);
+
+    const url2 = $('url2').value.trim();
+    if (url2) {
+      status.textContent = 'rakip video analiz ediliyor...';
+      try {
+        const other = await analyzeOnce(url2);
+        renderCompare(main, other);
+        status.textContent = '';
+      } catch (err) {
+        $('cmp-card').classList.add('hidden');
+        status.textContent = 'karşılaştırma atlandı: ' + err.message;
+      }
+    }
   } catch (err) {
     status.className = 'status';
     status.textContent = err.message;
@@ -257,9 +281,49 @@ function render(data) {
   }
 
   $('prompt').textContent = data.prompt;
+  $('vgen').textContent = data.videoPrompt || 'video üretim promptu oluşturulamadı';
+  $('cmp-card').classList.add('hidden');
 
   $('results').classList.remove('hidden');
   $('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderCompare(x, y) {
+  const A = x.stats;
+  const B = y.stats;
+  const n = (v) => (v == null ? '—' : Number(v).toLocaleString('tr-TR'));
+  const pct = (v) => (v == null ? '—' : '%' + Number(v).toFixed(2));
+  const rows = [
+    ['İzlenme', n(A.views), n(B.views), A.views, B.views, 'high'],
+    ['Beğeni', n(A.likes), n(B.likes), A.likes ?? -1, B.likes ?? -1, 'high'],
+    ['Beğeni Oranı', pct(A.likeRate), pct(B.likeRate), A.likeRate ?? -1, B.likeRate ?? -1, 'high'],
+    ['Abone', n(A.subscribers), n(B.subscribers), A.subscribers ?? -1, B.subscribers ?? -1, 'high'],
+    ['Günlük İzlenme', n(A.viewsPerDay), n(B.viewsPerDay), A.viewsPerDay, B.viewsPerDay, 'high'],
+    ['Topluluk Yanıtı', n(A.totalReplies), n(B.totalReplies), A.totalReplies, B.totalReplies, 'high'],
+    ['Video Yaşı', A.daysOld + ' gün', B.daysOld + ' gün', A.daysOld, B.daysOld, 'low'],
+  ];
+  const ta = (A.title || '').slice(0, 46);
+  const tb = (B.title || '').slice(0, 46);
+
+  const html = [
+    `<div class="cmp-grid">`,
+    `<div class="cmp-k cmp-head"></div>`,
+    `<div class="cmp-h" title="${esc(A.title || '')}">${esc(ta)}</div>`,
+    `<div class="cmp-h" title="${esc(B.title || '')}">${esc(tb)}</div>`,
+    ...rows.map(([label, va, vb, ra, rb, mode]) => {
+      const aw = mode === 'high' ? ra > rb : ra < rb;
+      const bw = mode === 'high' ? rb > ra : rb < ra;
+      return (
+        `<div class="cmp-k">${esc(label)}</div>` +
+        `<div class="cmp-v${aw ? ' win' : ''}">${va}</div>` +
+        `<div class="cmp-v${bw ? ' win' : ''}">${vb}</div>`
+      );
+    }),
+    `</div>`,
+  ].join('');
+
+  $('cmp-table').innerHTML = html;
+  $('cmp-card').classList.remove('hidden');
 }
 
 $('copy-btn').addEventListener('click', async () => {
@@ -277,4 +341,22 @@ $('copy-btn').addEventListener('click', async () => {
     $('copy-btn').textContent = 'Kopyalandı';
   }
   setTimeout(() => ($('copy-btn').textContent = 'Kopyala'), 1500);
+});
+
+$('vgen-copy').addEventListener('click', async () => {
+  const btn = $('vgen-copy');
+  const text = $('vgen').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = 'Kopyalandı';
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    btn.textContent = 'Kopyalandı';
+  }
+  setTimeout(() => (btn.textContent = 'Kopyala'), 1500);
 });

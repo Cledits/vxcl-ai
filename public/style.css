@@ -444,7 +444,7 @@ body {
 
 .prompt-head h2 { margin-bottom: 0; }
 
-#prompt {
+#prompt, #vgen {
   background: #0f172a;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -587,4 +587,78 @@ footer .copy { margin-top: 14px; font-size: 12px; }
   .paste-box { flex-wrap: wrap; }
   .paste-box #url { width: 100%; flex: 1 1 100%; }
   .kbd { display: none; }
+}
+
+.cmp-row { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; align-items: center; }
+
+.cmp-add {
+  background: none;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.cmp-add:hover { color: var(--primary); border-color: var(--primary); }
+
+.cmp-input {
+  width: 100%;
+  max-width: 560px;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--text);
+  font-size: 14.5px;
+}
+.cmp-input:focus { outline: none; border-color: var(--primary); }
+
+.cmp-table { margin-top: 14px; }
+
+.cmp-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.cmp-h {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmp-k {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 8px 4px;
+}
+
+.cmp-v {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-align: center;
+}
+
+.cmp-v.win {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--soft);
 }

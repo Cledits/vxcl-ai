@@ -51,6 +51,10 @@
         <span class="kbd">⌘V</span>
         <button id="scan-btn" type="submit" class="btn btn-primary">Analiz Et</button>
       </form>
+      <div class="cmp-row">
+        <button id="cmp-toggle" type="button" class="cmp-add">+ Karşılaştırma (isteğe bağlı)</button>
+        <input id="url2" type="text" class="cmp-input hidden" placeholder="İkinci video linki — kıyaslamak istediğin rakip" autocomplete="off">
+      </div>
       <p id="scan-status" class="status"></p>
     </section>
 
@@ -88,12 +92,27 @@
         </div>
       </div>
 
+      <div class="card hidden" id="cmp-card">
+        <h2>Karşılaştırma</h2>
+        <p class="muted small-note">hangisi neden önde — metrik metrik kıyas</p>
+        <div id="cmp-table" class="cmp-table"></div>
+      </div>
+
       <div class="card">
         <div class="prompt-head">
           <h2>Yeniden Yapma Promptu</h2>
           <button id="copy-btn" type="button" class="btn btn-ghost">Kopyala</button>
         </div>
         <pre id="prompt"></pre>
+      </div>
+
+      <div class="card">
+        <div class="prompt-head">
+          <h2>Yapay Zekâ ile Video Üret Promptu</h2>
+          <button id="vgen-copy" type="button" class="btn btn-ghost">Kopyala</button>
+        </div>
+        <p class="muted small-note">Sora, Kling, Veo, Runway gibi metin-görüntü araçlarına yapıştır — sahne sahne video çıkar</p>
+        <pre id="vgen"></pre>
       </div>
     </section>
 

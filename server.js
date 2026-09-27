@@ -573,6 +573,7 @@ async function analyze(videoId) {
     reasons: buildReasons(stats),
     insights: buildInsights(stats),
     prompt: buildPrompt(stats),
+    videoPrompt: buildVideoPrompt(stats),
   };
 }
 
@@ -981,6 +982,84 @@ function buildPrompt(s) {
     `- yorumlarda en az 100 yanıtlık tartışma`,
   ].join('\n');
 }
+
+function buildVideoPrompt(s) {
+  const kw = pickKeywords(s);
+  const dur = s.durationSec > 0 ? s.durationSec : 30;
+  const isShort = s.isShort;
+  const peak = (s.topMoments || [])[0];
+  const peakPct = peak ? Math.max(35, Math.min(80, Math.round((peak.sec / Math.max(1, dur)) * 100))) : 62;
+  const t = (p) => {
+    const sec = Math.round((dur * p) / 100);
+    return sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : `${sec} sn`;
+  };
+  const cut = isShort ? '1-2 saniyede bir kesme, agresif ve hızlı ritim' : '3-5 saniyede bir kesme, nefes alan planlarla ritim';
+  const style = VIDEO_STYLE[s.niche] || VIDEO_STYLE.genel;
+  const geo = isShort ? 'dikey 9:16, 1080x1920' : 'yatay 16:9, 1920x1080';
+  const kwLine = kw.slice(0, 4).join(', ') || s.title;
+
+  const scenes = [
+    [0, 6, 'KANCA', `tek karede merak uyandıran güçlü bir açılış: ${kwLine} konusunu ilk saniyede görsel bir iddiaya dönüştür, metin yok, sadece görsel şok`],
+    [6, Math.max(18, peakPct - 12), 'KURULUM', 'bağlamı ve gerilimi kur: mekânı, kahramanı veya konuyu tanıtan geniş açı, izleyici "nereye gidiyor bu" desin'],
+    [peakPct - 6, peakPct + 6, 'DORUK', peak ? `referans videonun yorumlarda en çok anılan anının muadili — yoğun duygu/aksiyon/patlama anı (${peak.t}), kamera burada yavaşlasın, ağır çekime geç` : 'videonun en yüksek enerjili anı — duygu veya aksiyon patlaması, ağır çekimle vurgula'],
+    [peakPct + 6, 86, 'DÖNÜŞ', 'sonucu veya cevabı göster, izleyiciye "beklediğim değeri aldım" hissi ver, detay planlarla kanıt sun'],
+    [86, 100, 'KAPANIŞ', 'açık uçlu bitiriş: kamera geri çekilir, izleyiciyi düşündüren tek bir soru iması görselde kalır, ekranda logo/watermark yok'],
+  ];
+
+  return [
+    `METİN-GÖRÜNTÜ VIDEO İSTEMİ (Sora / Kling / Veo / Runway / Minimax için)`,
+    ``,
+    `GÖREV`,
+    `"${s.title}" başlıklı ${s.nicheLabel.toLowerCase()} videosuna benzer his taşıyan, birebir kopyası OLMAYAN ${dur} saniyelik bir video üret.`,
+    ``,
+    `TEKNİK`,
+    `- en-boy: ${geo}`,
+    `- süre: ${dur} saniye (saniye saniye uymak zorunda değil, yakını olsun)`,
+    `- kesme ritmi: ${cut}`,
+    `- görsel stil: ${style}`,
+    `- anahtar görseller: ${kwLine}`,
+    `- renk paleti: ${isShort ? 'canlı ve doygun, akışta parlasın' : 'sinematik, kontrollü doygunluk, gölgeler derin'}`,
+    ``,
+    `SAHNE SAHNE AKIŞ`,
+    ...scenes.map(([a, b, name, desc], i) => `  ${i + 1}. [${t(a)} - ${t(b)}] ${name}: ${desc}`),
+    ``,
+    `KAMERA`,
+    isShort
+      ? '- el kamerası hissi veren hafif titreşim, ani zoom ve whip-pan geçişler, her plan tek odaklı'
+      : '- tripod/ağırlıklı kaydırmalar, geniş açı ile yakın plan arası geçiş, dorukta yavaş kaydırma (slider hissi)',
+    ``,
+    `SES`,
+    `- müzik: ${s.nicheLabel.toLowerCase()} temasına uygun, ${isShort ? 'ilk 1 saniyede vuruşunu vuran, yüksek tempolu' : 'girişte sakin, dorukta yükselen'} bir bed track`,
+    `- efekt: her kesmede yumuşak whoosh, dorukta derin sub-vuruş, kapanışta sesin aniden kesilmesi`,
+    `- diyalog yok; gerekirse 2 kelimeyi geçmeyen alt yazı kartları`,
+    ``,
+    `METİN KATMANI`,
+    `- ilk 2 saniyede büyük ve kalın 1 kelimelik vaat (ör. "${(kw[0] || 'izle').toUpperCase()}")`,
+    `- dorukta zaman damgası stili mini etiket`,
+    `- kapanışta ekranda soru işareti, kanal adı YOK`,
+    ``,
+    `OLUMSUZ (bunları üretme)`,
+    `- filigran, logo, marka işareti, okunamayan yazı karakterleri, fazla uzuv, plastik yüzler, gereksiz kalabalık sahne, sabit ve donmuş kamera`,
+    ``,
+    `TEK SATIRLIK ÖZET (hızlı araçlar için)`,
+    `${isShort ? 'dikey' : 'yatay'} ${s.nicheLabel.toLowerCase()} videosu, ${style}, ${cut}, açılışta görsel şok kancası, ortada tek doruk anı, sonda açık uçlu kapanış — "${kwLine}"`,
+  ].join('\n');
+}
+
+const VIDEO_STYLE = {
+  futbol: 'dokümanter spor estetiği, gece stadyum ışığı, saha zemininden düşük açı dinamik takip, çim dokusu net',
+  spor: 'yüksek kontrast, terin ışıkta parlaması, ağır çekim ile normal hız dönüşümlü, kas hareketi odaklı',
+  gaming: 'karanlık oda + neon vurgular, ekran parıltısının yüzü aydınlatması, HUD benzeri grafik geçişler',
+  muzik: 'klip estetiği, renkli pratik ışıklar, ritme kilitli kesmeler, duman/haze katmanı',
+  yemek: 'yumuşak gün ışığı, makro doku çekimleri, buhar ve dökülme anları, ahşap/koyu zemin kontrastı',
+  teknoloji: 'temiz minimal masa düzeni, difüz stüdyo ışığı, cihaz üzerinde yavaş orbital kamera, ince metalik yansıma',
+  komedi: 'parlak düz aydınlatma, statik kompozisyon + ani punch-in zoom, abartılı yüz ifadeleri',
+  vlog: 'el kamerası hissi, doğal pencere ışığı, gündelik mekân dokusu, samimi dağınıklık',
+  egitim: 'aydınlık anlatım düzeni, grafik ve ok bindirmeleri, beyaz/anlatım zemini, sakin kamera',
+  otomobil: 'sinematik takip çekimi, altın saat ışığı, boya yansıması ve tekerlek detayları, alçak açı',
+  haber: 'dokümanter netlik, doğal ışık, saha dokusu, ölçülü kamera hareketi',
+  genel: 'sinematik doğal ışık, kontrollü kamera hareketi, gerçekçi doku ve derinlik',
+};
 
 app.listen(PORT, () => {
   const url = `http://localhost:${PORT}`;
