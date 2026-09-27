@@ -273,6 +273,7 @@ async function fetchInnertube(videoId) {
     durationSec: Number(vd.lengthSeconds) || 0,
     comments,
     commentWords,
+    category: mf.category || '',
   };
 }
 
@@ -321,6 +322,7 @@ async function fetchInvidious(videoId) {
         durationSec: Number(v.lengthSeconds) || 0,
         comments,
         commentWords: freqWords(comments.map((c) => c.text), 5).map((e) => e[0]),
+        category: v.genre || v.category || '',
       };
     } catch (e) {
       lastErr = String((e && e.message) || e);
@@ -415,6 +417,7 @@ async function fetchWatchPage(videoId) {
     durationSec: Number(vd.lengthSeconds) || 0,
     comments,
     commentWords,
+    category: mf.category || '',
   };
 }
 
@@ -464,6 +467,11 @@ async function analyze(videoId) {
     commentWords: src.commentWords || [],
     totalReplies: comments.reduce((a, c) => a + (c.replies || 0), 0),
   };
+
+  stats.category = src.category || '';
+  stats.niche = detectNiche(stats);
+  stats.nicheLabel = NICHE_LABELS[stats.niche] || 'Genel İçerik';
+  stats.topMoments = extractTopMoments(comments, src.durationSec || 0);
 
   return {
     stats,
@@ -525,6 +533,184 @@ function buildReasons(s) {
   return r.slice(0, 5);
 }
 
+const NICHE_LABELS = {
+  futbol: 'Futbol',
+  spor: 'Spor',
+  gaming: 'Gaming',
+  muzik: 'Müzik',
+  yemek: 'Yemek',
+  teknoloji: 'Teknoloji',
+  komedi: 'Komedi',
+  egitim: 'Eğitim',
+  otomobil: 'Otomobil',
+  vlog: 'Vlog',
+  haber: 'Haber',
+  genel: 'Genel İçerik',
+};
+
+const NICHE_IDEAS = {
+  futbol: [
+    'maçın kırılma anını tek pozisyonda toplayan 60-90 sn "o an ne oldu" analizi',
+    'lig tarihinin unutulmaz geri dönüşlerinden derleme, kronolojik gerilimle kurgu',
+    'derbi öncesi taktik tahtada iki takımın zayıf noktası: iddialı anlatım',
+    'taraftar/tribün perspektifinden bir 90 dakika belgeseli, ses tasarımı öne çıksın',
+    'istatistikle "en iyi 10 gol" listesi ama her golde tek cümlelik hikâye',
+  ],
+  spor: [
+    'tek hareketin anatomisini bozarak anlatan mikro analiz (yavaş çekim + doğru form)',
+    '30 günde dönüşüm hikâyesi: ilk ve son görüntü yan yana, hook bu',
+    'profesyonel ile amatörün karşılaştırması, fark ilk 5 saniyede görülsün',
+    'sık yapılan 3 hatayı tek videoda çürüt, başlıkta iddia kullan',
+    'antrenmanı hikâyeye çevir: hedef, engel, zafer kurgusu',
+  ],
+  gaming: [
+    'tek haritada ustalık gösteren kısa kurgu, en iyi anlar hızlı kesim',
+    'yeni oyunda ilk 10 dakika deneyimi — şaşırtıcı keşif anı hook olsun',
+    'strateji rehberi: iddialı bir iddiayla aç ("herkes yanlış yapıyor")',
+    'efsanevi hatalar/fail derlemesi, her birinde 3 sn buildup + tepki',
+    '1v1 challenge: bilinen rakibe karşı, skor tabelası gerilimi canlı tutsun',
+  ],
+  muzik: [
+    'parçanın en beklenmedik kısmında kesip tepki/cover açılışı',
+    'stüdyoda doğaçlama: tek take kaydet, samimiyet çekiciliği olsun',
+    'iki farklı müzik türünü aynı melodide birleştir köprü videosu',
+    'klip fikri: tek mekânda zamana karşı çekim, sözler senkron',
+    'dinleyici isteklerinden set — toplulukla ortak içerik',
+  ],
+  yemek: [
+    'malzeme tek ekranda: 3 malzemeyle iddialı 5 dakikalık tarif',
+    'sokak lezzetini mutfakta yeniden yapma challenge',
+    'yaygın yanlış bilineni tek tek çürüten mini test formatı',
+    'gece atıştırması hook: tek kişilik hızlı tarif',
+    'kırım/doku anı slow motion — açılış bu olsun, tarif sonra gelsin',
+  ],
+  teknoloji: [
+    'eski vs yeni: 10 yıllık cihaz bugün ne yapabilir',
+    'pahalı ürünün uygun fiyatlı rakibi: A/B testi, fark gözle görünsün',
+    'bir özelliği 60 saniyede kanıtlayan mikro inceleme',
+    'gizli ipuçları/hack: arama sonuçlarında çıkmayan yöntemler',
+    'ilk 24 saat dayanma testi, gerçek hayattan kesitler',
+  ],
+  komedi: [
+    'gündelik bir durumu abartarak oynama, ilk saniyede ters köşe',
+    'beklenmedik yerde kesilen reaction zinciri',
+    'tek espriyi 1 dakikada ustaca döndür, tekrar sevdirme',
+    'izleyici yorumlarını okuyup oynama — topluluk katılımı',
+    'sürekli tekrar eden bir şey üzerine koşuşturma gag',
+  ],
+  egitim: [
+    'en sık yapılan hatayı tek videoda çöz, başlıkta iddia kur',
+    'sıfırdan küçük proje: adımlar ekranda, sonuç ilk 10 saniyede görünsün',
+    '1 soru 3 yöntem: en iyisi en sonda sürpriz olsun',
+    'görsel zihin haritası anlatımı, kamera sabit, ritim hızlı',
+    'gerçek hayattan problem → çözüm hikâyesi',
+  ],
+  otomobil: [
+    'tek teknik detayı mercek altına alan hızlı test',
+    'eski model vs yeni model: farkı gözle görülür kılan A/B',
+    'yol hikâyesi: manzara + anlatım, sakin ritim',
+    'maliyet/performans iddiası: rakamlarla konuşma',
+    'açılışta motor/şehir sesi, sonra hikâye başlasın',
+  ],
+  vlog: [
+    'tek güne sigan mikro hikâye, sabah kalkış hook',
+    'sessiz/görsel anlatım: konuşma az, ritim çok',
+    'planlanmamış bir olayın dönüm noktası oluşu',
+    'kişisel hedefin ilk adımı: izleyici ortak olsun',
+    'detayları kutulama/organize etme tatmin anları',
+  ],
+  haber: [
+    'konuyu 60 saniyede özetleyen iddialı açılış',
+    'iki farklı bakış aynı ekranda: denge formatı',
+    'arşiv görüntüleriyle zaman tüneli',
+    'sokak röportajı kesitleri + tek cümlelik sonuç',
+    'veriyi tek infografikte anlat, hızlı geçiş',
+  ],
+  genel: [
+    'referans videonun ana kelimesi etrafında 3 farklı açılım seçeneği',
+    'tek soruya net cevap veren mikro format (60-90 sn)',
+    'kişisel deneyim + kanıt kurgusu: hikâye önce, bilgi sonra',
+    'liste formatı ama her maddede mini sürpriz',
+    'tartışma başlatan iddia: yorumlar cevap yazsın',
+  ],
+};
+
+function detectNiche(s) {
+  const rules = [
+    ['futbol', /\b(futbol|soccer|football|maçlar|maçi|maci|gol|derbi|uefa|champions league|premier league|laliga|la liga|barcelona|real madrid|fenerbahçe|fenerbahce|galatasaray|beşiktaş|besiktas|trabzonspor|milli takım|milli takim|serie a|bayern|juventus|manchester|everton|ajax)\b/],
+    ['spor', /\b(spor|fitness|antrenman|workout|mma|boks|boxing|tennis|tenis|formula|f1|nba|basketbol|voleybol|güreş|gures|wrestling)\b/],
+    ['gaming', /\b(oyun|oyuncu|gaming|gameplay|valorant|fortnite|minecraft|pubg|counter|cs2|cs:go|league of legends|zula|mobile legends|elden ring|gta|ps5|xbox|nintendo|switch|twitch|stream)\b/],
+    ['muzik', /\b(müzik|muzik|şarkı|sarkı|song|lyrics|albüm|album|rap|pop|konser|concert|remix|cover|klip|beat)\b/],
+    ['yemek', /\b(yemek|tarif|mutfak|recipe|cooking|restoran|restaurant|şef|chef|kebap|pasta)\b/],
+    ['komedi', /\b(komedi|komik|şaka|saka|mizah|prank|challenge|react|reaksiyon|espri|güldür|guldur|komik)\b/],
+    ['vlog', /\b(vlog|günlerim|gunlerim|day in the life|yaşam|yasam|lunapark|gezi)\b/],
+    ['egitim', /\b(ders|eğitim|egitim|kurs|course|tutorial|nasıl yapılır|nasil yapilir|how to|çözümlü|cozumlu|sınav|sinav)\b/],
+    ['teknoloji', /\b(teknoloji|telefon|iphone|android|laptop|bilgisayar|inceleme|review|yazılım|yazilim|kod|program|yapay zeka|robot|chip)\b/],
+    ['otomobil', /\b(araba|otomobil|motor|bisiklet|tuning|test sürüşü|test surusu|bmw|mercedes|toyota|honda)\b/],
+    ['haber', /\b(haber|politika|seçim|secim|ekonomi|dünya|dunya)\b/],
+  ];
+  const title = (s.title || '').toLowerCase();
+  const tagsStr = (s.tags || []).join(' ').toLowerCase();
+  const desc = (s.description || '').slice(0, 1200).toLowerCase();
+  let best = 'genel';
+  let bestScore = 0;
+  for (const [key, re] of rules) {
+    const sc = (title.match(re) || []).length * 3 + (tagsStr.match(re) || []).length * 2 + (desc.match(re) || []).length;
+    if (sc > bestScore) {
+      bestScore = sc;
+      best = key;
+    }
+  }
+  if (bestScore > 0) return best;
+  const cat = (s.category || '').toLowerCase();
+  if (cat.includes('gaming')) return 'gaming';
+  if (cat.includes('sport')) return 'spor';
+  if (cat.includes('music')) return 'muzik';
+  if (cat.includes('education')) return 'egitim';
+  if (cat.includes('entertainment')) return 'komedi';
+  if (cat.includes('howto')) return 'yemek';
+  return 'genel';
+}
+
+function extractTopMoments(comments, durationSec) {
+  const map = new Map();
+  for (const c of comments) {
+    const txt = String(c.text || '');
+    const re = /(?:^|[\s\W])(\d{1,2}):(\d{2})(?::(\d{2}))?(?![\d:])/g;
+    let m;
+    while ((m = re.exec(txt))) {
+      const sec = m[3] ? +m[1] * 3600 + +m[2] * 60 + +m[3] : +m[1] * 60 + +m[2];
+      if (sec < 5) continue;
+      if (durationSec && sec > durationSec) continue;
+      if (sec > 6 * 3600) continue;
+      const bucket = Math.round(sec / 5) * 5;
+      const prev = map.get(bucket);
+      if (prev) {
+        prev.count++;
+        prev.likes += c.likes || 0;
+        if ((c.likes || 0) > prev.sampleLikes) {
+          prev.sample = txt;
+          prev.sampleLikes = c.likes || 0;
+        }
+      } else {
+        map.set(bucket, { sec: bucket, count: 1, likes: c.likes || 0, sample: txt, sampleLikes: c.likes || 0 });
+      }
+    }
+  }
+  return [...map.values()]
+    .sort((a, b) => b.count - a.count || b.likes - a.likes)
+    .slice(0, 4)
+    .map((e) => ({
+      sec: e.sec,
+      t: e.sec >= 3600
+        ? `${Math.floor(e.sec / 3600)}:${String(Math.floor((e.sec % 3600) / 60)).padStart(2, '0')}:${String(e.sec % 60).padStart(2, '0')}`
+        : `${Math.floor(e.sec / 60)}:${String(e.sec % 60).padStart(2, '0')}`,
+      count: e.count,
+      likes: e.likes,
+      sample: e.sample || '',
+    }));
+}
+
 function buildInsights(s) {
   const out = [];
 
@@ -545,6 +731,15 @@ function buildInsights(s) {
     out.push(`İlk 20 yorumun toplamı ${s.totalReplies} yanıt almış; en güçlü yorum ${best.likes != null ? fmtNum(best.likes) + ' beğeni' : 'yüksek etkileşim'} ile "${clip(best.text, 60)}" — izleyici bu temaya tepki vermiş.`);
   } else {
     out.push('Yorumlara erişilemedi (yorumlar kapalı olabilir) — yorum trafiği algoritma için en güçlü ikinci sinyal, yorum açık kalsın.');
+  }
+
+  if (s.topMoments && s.topMoments.length) {
+    const m = s.topMoments[0];
+    out.push(`Yorumlarda en çok anılan saniye: ${m.t} (${m.count} yorumda geçmiş${m.likes ? ', toplam ' + fmtNum(m.likes) + ' beğeni' : ''}) — kritik doruk anı orada patlamış; yeni videoda benzer anı bu konuma yerleştir.`);
+  }
+
+  if (s.nicheLabel) {
+    out.push(`Kategori tespiti: ${s.nicheLabel} — tüm formül (kanca, ritim, SEO) bu nişin diline göre kurulmalı.`);
   }
 
   if (s.commentWords.length) {
@@ -634,6 +829,7 @@ function buildPrompt(s) {
     ``,
     `REFERANS VİDEO`,
     `"${s.title}" — ${fmtNum(s.views)} izlenme${s.likes !== null ? `, ${fmtNum(s.likes)} beğeni${s.likeRate !== null ? ` (%${s.likeRate.toFixed(1)})` : ''}` : ''}.`,
+    `Kategori: ${s.nicheLabel}${s.category ? ` (youtube: ${s.category})` : ''}.`,
     `Neden bu kadar izlendi:`,
     ...reasons.map((x, i) => `  ${i + 1}. ${x}`),
     ``,
@@ -644,6 +840,15 @@ function buildPrompt(s) {
     `- senaryo, sahne, başlık veya kurgunun birebir kopyasını ASLA üretme`,
     `- aynı konu etrafında özgün açılım yap: benzer his, farklı içerik`,
     `- referans videonun tuttuğu formülü (kanca, ritim, uzunluk, SEO) uygula, kendine ait hikâyeyle harmanla`,
+    ``,
+    `NİŞ ODAK: ${s.nicheLabel} — bu nişte, şu formülle İZLENECEK VE BEĞENECEK benzer video fikirlerinden birini seç:`,
+    ...(NICHE_IDEAS[s.niche] || NICHE_IDEAS.genel).map((x, i) => `  ${i + 1}. ${x}`),
+    ...(s.topMoments && s.topMoments.length
+      ? [
+          ``,
+          `ZİRVE ANI: referansta yorumlarda en çok anılan saniye ${s.topMoments[0].t} — yeni videoda benzer doruk noktasını sürenin yaklaşık %${Math.min(90, Math.round((s.topMoments[0].sec / Math.max(1, s.durationSec)) * 100))} konumuna koy.`,
+        ]
+      : []),
     ``,
     `1) KONU VE NİŞ`,
     `- anahtar kelimeler: ${kw.join(' / ')}`,

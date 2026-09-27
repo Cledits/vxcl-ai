@@ -68,6 +68,34 @@ body {
 
 .nav-actions { display: flex; gap: 10px; align-items: center; }
 
+.small-note { font-size: 12.5px; margin: -6px 0 14px; }
+
+.moments { display: flex; flex-direction: column; gap: 12px; }
+
+.moment {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: #f6f8ff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 15px;
+}
+
+.moment-t {
+  flex-shrink: 0;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.moment-meta { font-size: 12.5px; font-weight: 700; color: var(--blue); margin-bottom: 3px; }
+.moment-text { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+
 .account {
   display: flex;
   align-items: center;

@@ -184,7 +184,7 @@ function render(data) {
     $('thumb').style.display = 'none';
   }
   $('v-title').textContent = s.title;
-  $('v-meta').textContent = `${s.channelTitle} • ${s.publishedText}`;
+  $('v-meta').textContent = `${s.channelTitle} • ${s.publishedText}${s.nicheLabel ? ' • ' + s.nicheLabel : ''}`;
 
   const cards = [
     ['İzlenme', fmt(s.views)],
@@ -202,6 +202,24 @@ function render(data) {
 
   $('reasons').innerHTML = (data.reasons || []).map((i) => `<li>${esc(i)}</li>`).join('');
   $('insights').innerHTML = data.insights.map((i) => `<li>${esc(i)}</li>`).join('');
+
+  const moments = s.topMoments || [];
+  if (moments.length) {
+    $('moments-card').classList.remove('hidden');
+    $('moments').innerHTML = moments
+      .map(
+        (m) => `
+        <div class="moment">
+          <span class="moment-t">${esc(m.t)}</span>
+          <div class="moment-body">
+            <div class="moment-meta">${fmt(m.count)} yorumda geçti${m.likes ? ' · ' + fmt(m.likes) + ' beğeni' : ''}</div>
+            <div class="moment-text">${esc((m.sample || '').slice(0, 140))}</div>
+          </div>
+        </div>`)
+      .join('');
+  } else {
+    $('moments-card').classList.add('hidden');
+  }
 
   const cm = s.comments || [];
   if (cm.length) {
