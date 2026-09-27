@@ -1,0 +1,196 @@
+let idToken = null;
+let gisReady = false;
+let pendingUrl = null;
+
+const $ = (id) => document.getElementById(id);
+
+fetch('/api/config')
+  .then((r) => r.json())
+  .then((cfg) => {
+    if (cfg.clientId) {
+      whenGis(() => {
+        google.accounts.id.initialize({
+          client_id: cfg.clientId,
+          callback: onCredential,
+        });
+        gisReady = true;
+      });
+      return;
+    }
+    if (cfg.devMode) {
+      $('gate-status').textContent = 'google anahtarı henüz yok — geçici giriş modu';
+      const b = document.createElement('button');
+      b.className = 'dev-login';
+      b.textContent = 'Google ile giriş (geçici mod)';
+      b.addEventListener('click', () => onCredential({ credential: 'dev' }));
+      $('gbtn').appendChild(b);
+      return;
+    }
+    $('gate-status').textContent = 'GOOGLE_CLIENT_ID eksik — giriş şu an yapılamıyor';
+  })
+  .catch(() => {
+    $('gate-status').textContent = 'sunucuya ulaşılamıyor';
+  });
+
+function whenGis(cb) {
+  if (window.google && google.accounts && google.accounts.id) cb();
+  else setTimeout(() => whenGis(cb), 100);
+}
+
+function onCredential(response) {
+  idToken = response.credential;
+  closeModal();
+  const status = $('scan-status');
+  status.className = 'status info';
+  status.textContent = 'giriş yapıldı';
+  if (pendingUrl) {
+    $('url').value = pendingUrl;
+    pendingUrl = null;
+    runAnalysis();
+  }
+}
+
+function openLogin() {
+  $('login-modal').classList.remove('hidden');
+  if (gisReady) {
+    $('gbtn').innerHTML = '';
+    google.accounts.id.renderButton($('gbtn'), {
+      theme: 'outline',
+      size: 'large',
+      width: 240,
+      text: 'signin_with',
+    });
+  }
+}
+
+function closeModal() {
+  $('login-modal').classList.add('hidden');
+}
+
+$('nav-login').addEventListener('click', openLogin);
+$('modal-close').addEventListener('click', closeModal);
+$('login-modal').addEventListener('click', (e) => {
+  if (e.target === $('login-modal')) closeModal();
+});
+
+$('scan-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const url = $('url').value.trim();
+  if (!url) return;
+  if (!idToken) {
+    pendingUrl = url;
+    const status = $('scan-status');
+    status.className = 'status';
+    status.textContent = '';
+    openLogin();
+    return;
+  }
+  runAnalysis();
+});
+
+async function runAnalysis() {
+  const btn = $('scan-btn');
+  const status = $('scan-status');
+  btn.disabled = true;
+  btn.textContent = 'Taranıyor...';
+  status.className = 'status info';
+  status.textContent = '';
+  $('results').classList.add('hidden');
+
+  try {
+    const r = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, url: $('url').value }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Analiz başarısız.');
+    render(j);
+  } catch (err) {
+    status.className = 'status';
+    status.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analiz Et';
+  }
+}
+
+function esc(t) {
+  const d = document.createElement('div');
+  d.textContent = t == null ? '' : String(t);
+  return d.innerHTML;
+}
+
+function fmt(n) {
+  return n == null ? '—' : Number(n).toLocaleString('tr-TR');
+}
+
+function render(data) {
+  const s = data.stats;
+  $('scan-status').textContent = '';
+
+  if (s.thumbnail) {
+    $('thumb').src = s.thumbnail;
+    $('thumb').style.display = '';
+  } else {
+    $('thumb').style.display = 'none';
+  }
+  $('v-title').textContent = s.title;
+  $('v-meta').textContent = `${s.channelTitle} • ${s.publishedText}`;
+
+  const cards = [
+    ['İzlenme', fmt(s.views)],
+    ['Beğeni', fmt(s.likes)],
+    ['Beğeni Oranı', s.likeRate != null ? '%' + s.likeRate.toFixed(2) : '—'],
+    ['Abone', fmt(s.subscribers)],
+    ['Süre', s.durationText],
+    ['Günlük İzlenme', fmt(s.viewsPerDay)],
+    ['Topluluk Yanıtı', fmt(s.totalReplies)],
+    ['Yayından Sonra', s.daysOld + ' gün'],
+  ];
+  $('stats').innerHTML = cards
+    .map(([k, v]) => `<div class="stat"><div class="stat-v">${esc(v)}</div><div class="stat-k">${esc(k)}</div></div>`)
+    .join('');
+
+  $('reasons').innerHTML = (data.reasons || []).map((i) => `<li>${esc(i)}</li>`).join('');
+  $('insights').innerHTML = data.insights.map((i) => `<li>${esc(i)}</li>`).join('');
+
+  const cm = s.comments || [];
+  if (cm.length) {
+    $('comments').innerHTML = cm
+      .slice(0, 5)
+      .map((c) => `
+        <div class="comment">
+          <div class="comment-head">
+            <span class="comment-author">${esc(c.author || 'anonim')}</span>
+            <span class="comment-meta">${c.likes != null ? esc(fmt(c.likes)) + ' beğeni' : ''}${c.replies ? ' · ' + esc(fmt(c.replies)) + ' yanıt' : ''}${c.published ? ' · ' + esc(c.published) : ''}</span>
+          </div>
+          <div class="comment-text">${esc(c.text)}</div>
+        </div>`)
+      .join('');
+  } else {
+    $('comments').innerHTML = '<div class="muted">yorumlar kapalı veya çekilemedi</div>';
+  }
+
+  $('prompt').textContent = data.prompt;
+
+  $('results').classList.remove('hidden');
+  $('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('copy-btn').addEventListener('click', async () => {
+  const text = $('prompt').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    $('copy-btn').textContent = 'Kopyalandı';
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    $('copy-btn').textContent = 'Kopyalandı';
+  }
+  setTimeout(() => ($('copy-btn').textContent = 'Kopyala'), 1500);
+});

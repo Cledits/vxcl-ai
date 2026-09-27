@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vxcl-ai
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NO_AUTO_OPEN
+        value: "1"
+      - key: DEV_SKIP_AUTH
+        value: "1"
+      - key: GOOGLE_CLIENT_ID
+        sync: false

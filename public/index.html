@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vxcl.ai — YouTube Video Analiz Aracı</title>
+  <meta name="description" content="vxcl.ai — YouTube video linkini yapıştır; püf noktaları, etkileşim analizi ve yeniden üretim promptunu saniyeler içinde al.">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="#" class="logo">vxcl<span>.ai</span></a>
+    <div class="nav-links">
+      <a href="#how">Nasıl Çalışır</a>
+      <a href="#features">Özellikler</a>
+    </div>
+    <div class="nav-actions">
+      <button id="nav-login" class="btn btn-ghost">Giriş Yap</button>
+      <a href="#hero" class="btn btn-primary">Hemen Başla →</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="hero" class="hero">
+      <div class="badge">v1.0 · Yapay zeka destekli YouTube analizi</div>
+      <h1>Videonun <span class="grad">Neden Tuttuğunu</span> Öğren</h1>
+      <p class="hero-sub">Linki yapıştır; püf noktalarını, etkileşim sırlarını ve aynı videoyu yeniden üretmene yarayacak hazır promptu saniyeler içinde al.</p>
+
+      <form id="scan-form" class="paste-box">
+        <input id="url" type="text" placeholder="YouTube video linkini buraya yapıştırın..." autocomplete="off" required>
+        <span class="kbd">⌘V</span>
+        <button id="scan-btn" type="submit" class="btn btn-primary">Analiz Et</button>
+      </form>
+      <p id="scan-status" class="status"></p>
+    </section>
+
+    <section id="results" class="hidden">
+      <div class="card reasons-card">
+        <h2>Bu Video Neden Bu Kadar İzlendi?</h2>
+        <ul id="reasons" class="reasons"></ul>
+      </div>
+
+      <div class="card">
+        <div class="video-head">
+          <img id="thumb" alt="">
+          <div>
+            <h2 id="v-title"></h2>
+            <div class="muted" id="v-meta"></div>
+          </div>
+        </div>
+        <div class="stat-grid" id="stats"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <h2>Püf Noktaları</h2>
+          <ul id="insights" class="insights"></ul>
+        </div>
+        <div class="card">
+          <h2>Topluluk Nabzı</h2>
+          <div id="comments" class="comments"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="prompt-head">
+          <h2>Yeniden Yapma Promptu</h2>
+          <button id="copy-btn" type="button" class="btn btn-ghost">Kopyala</button>
+        </div>
+        <pre id="prompt"></pre>
+      </div>
+    </section>
+
+    <section id="how" class="section">
+      <div class="section-head">
+        <h2>3 Adımda Nasıl Çalışır?</h2>
+        <p>kayıt yok, kurulum yok — linki yapıştır, gerisini bırak</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h3>Video Linkini Ekle</h3>
+          <p>İstediğin YouTube videosunun linkini kopyala ve analiz kutusuna yapıştır.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h3>Yapay Zeka Analizi</h3>
+          <p>Beğeni oranı, izlenme temposu, abone kitlesi ve yorum rüzgârı tek tek çözümlenir.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h3>Sonuçları İncele</h3>
+          <p>Püf noktalarını oku, topluluk nabzını gör, hazır promptu kopyala ve üret.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="section-head">
+        <h2>Özellikler</h2>
+        <p>bir videonun arkasındaki formülü ortaya çıkaran dört araç</p>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-ico">📊</div>
+          <h3>Derinlemesine Metrikler</h3>
+          <p>Beğeni oranı, günlük izlenme temposu, izlenme/abone dengesi ve yayın yaşı — hepsi tek ekranda.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-ico">✨</div>
+          <h3>Püf Noktası Motoru</h3>
+          <p>Video neden tuttu? Başlık formülü, etiket derinliği, format tercihi ve açılış kancası analiz edilir.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-ico">💬</div>
+          <h3>Topluluk Nabzı</h3>
+          <p>İlk 20 yorumun beğeni ve yanıt sayılarıyla hangi temaya tepki gittiği görülür.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-ico">🎯</div>
+          <h3>Yeniden Yapma Promptu</h3>
+          <p>Analiz sonucunda aynı formülü hedefleyen, kopyala-yapıştır hazır prodüksiyon promptu üretilir.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="logo">vxcl<span>.ai</span></div>
+    <p>veriler YouTube üzerinden anlık çekilir, hiçbir şey kayıt altına alınmaz</p>
+    <p class="copy">© 2026 vxcl.ai</p>
+  </footer>
+
+  <div id="login-modal" class="modal hidden">
+    <div class="modal-card">
+      <button id="modal-close" class="modal-close">×</button>
+      <h2>Google ile Giriş Yap</h2>
+      <p class="muted">analiz sonuçlarını görmek için hesabınla giriş yap</p>
+      <div id="gbtn"></div>
+      <p id="gate-status" class="status"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
