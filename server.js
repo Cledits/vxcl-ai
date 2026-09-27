@@ -985,64 +985,80 @@ function buildPrompt(s) {
 
 function buildVideoPrompt(s) {
   const kw = pickKeywords(s);
-  const dur = s.durationSec > 0 ? s.durationSec : 30;
-  const isShort = s.isShort;
-  const peak = (s.topMoments || [])[0];
-  const peakPct = peak ? Math.max(35, Math.min(80, Math.round((peak.sec / Math.max(1, dur)) * 100))) : 62;
-  const t = (p) => {
-    const sec = Math.round((dur * p) / 100);
-    return sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : `${sec} sn`;
-  };
-  const cut = isShort ? '1-2 saniyede bir kesme, agresif ve hızlı ritim' : '3-5 saniyede bir kesme, nefes alan planlarla ritim';
   const style = VIDEO_STYLE[s.niche] || VIDEO_STYLE.genel;
-  const geo = isShort ? 'dikey 9:16, 1080x1920' : 'yatay 16:9, 1920x1080';
+  const moments = (s.topMoments || []).slice(0, 3);
   const kwLine = kw.slice(0, 4).join(', ') || s.title;
+  const clipLen = s.isShort ? Math.min(30, Math.max(15, Math.round(s.durationSec * 0.4) || 20)) : 25;
+  const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim();
 
-  const scenes = [
-    [0, 6, 'KANCA', `tek karede merak uyandıran güçlü bir açılış: ${kwLine} konusunu ilk saniyede görsel bir iddiaya dönüştür, metin yok, sadece görsel şok`],
-    [6, Math.max(18, peakPct - 12), 'KURULUM', 'bağlamı ve gerilimi kur: mekânı, kahramanı veya konuyu tanıtan geniş açı, izleyici "nereye gidiyor bu" desin'],
-    [peakPct - 6, peakPct + 6, 'DORUK', peak ? `referans videonun yorumlarda en çok anılan anının muadili — yoğun duygu/aksiyon/patlama anı (${peak.t}), kamera burada yavaşlasın, ağır çekime geç` : 'videonun en yüksek enerjili anı — duygu veya aksiyon patlaması, ağır çekimle vurgula'],
-    [peakPct + 6, 86, 'DÖNÜŞ', 'sonucu veya cevabı göster, izleyiciye "beklediğim değeri aldım" hissi ver, detay planlarla kanıt sun'],
-    [86, 100, 'KAPANIŞ', 'açık uçlu bitiriş: kamera geri çekilir, izleyiciyi düşündüren tek bir soru iması görselde kalır, ekranda logo/watermark yok'],
-  ];
+  const sourceBlock = moments.length
+    ? [
+        `KAYNAK AN (izleyicilerin en çok anlattığı, komik/viral parça)`,
+        `- orijinaldeki yer: ${moments[0].t}`,
+        `- yorumlarda geçme: ${moments[0].count} yorum${moments[0].likes ? `, ${fmtNum(moments[0].likes)} beğeni ile` : ''}`,
+        `- izleyiciler bu anı böyle anlatıyor: "${clean(moments[0].sample).slice(0, 170)}"`,
+        ...moments.slice(1).map((m, i) => `- alternatif an ${i + 1}: ${m.t} — "${clean(m.sample).slice(0, 90)}" (${m.count} yorum)`),
+      ]
+    : [
+        `KAYNAK AN (yorumlarda zaman damgası yok)`,
+        `- videonun konusundaki en çok paylaşılmaya aday doruk: "${kwLine}"`,
+        `- türetme kuralı: başlıktaki iddianın CEVABI olan tek anı seç, gerisini kes`,
+      ];
+
+  const scenes = moments.length
+    ? [
+        [0, 3, 'FLASH-FORWARD KANCA', `en vurucu kareyi BAŞA koy: ${moments[0].t} anının en komik/şok edici görüntüsünü 1-2 saniyelik kesme olarak göster, izleyici "bu neydi" desin`],
+        [3, 6, 'HAZIRLIK', `"${s.title}" konusunu 2 planda kur: mekân/kahraman tanıtılsın, gerginlik ya da beklenti yükselsin`],
+        [6, Math.max(13, clipLen - 9), 'ANIN KENDİSİ', `kaynak an (${moments[0].t}) yeniden canlandırılır — yorumların tarif ettiği o olay/neşe/absürtlük tam burada yaşanır, ritim burada zirvede`],
+        [Math.max(13, clipLen - 9), clipLen - 4, 'DONMA + TEPKİ', 'en komik kare donar, ağır çekime geçer, kamera yüze/pozisyona zoom yapar, izleyici tepkisi hissedilir'],
+        [clipLen - 4, clipLen, 'DÖNGÜ', 'kapanış ilk 2 saniyeye bağlanır — video kendi kendine tekrar oynasın, ekranda logo/watermark yok'],
+      ]
+    : [
+        [0, 3, 'KANCA', 'iddayı görsel olarak ilk saniyede ver: tek karede merak, metin yok'],
+        [3, 8, 'KURULUM', 'konuyu ve kahramanı hızlıca tanıt, gerilimi kur'],
+        [8, Math.max(15, clipLen - 8), 'DORUK', `"${kwLine}" bağlamındaki en yüksek enerjili/absürt/komik an burada yaşanır`],
+        [Math.max(15, clipLen - 8), clipLen, 'KAPANIŞ', 'donmuş kare + zoom ile bit, başa bağlanacak döngü kur'],
+      ];
 
   return [
-    `METİN-GÖRÜNTÜ VIDEO İSTEMİ (Sora / Kling / Veo / Runway / Minimax için)`,
+    `VİRAL AN → METİN-GÖRÜNTÜ VIDEO İSTEMİ (Sora / Kling / Veo / Runway / Minimax için)`,
     ``,
     `GÖREV`,
-    `"${s.title}" başlıklı ${s.nicheLabel.toLowerCase()} videosuna benzer his taşıyan, birebir kopyası OLMAYAN ${dur} saniyelik bir video üret.`,
+    `"${s.title}" (${s.nicheLabel}) videosunun izleyicilerin en çok anlattığı, en komik/viral anını temel alan, tek başına ayakta duran ${clipLen} saniyelik dikey bir short üret.`,
+    `Video, o videonun tamamının yeniden yapımı DEĞİL — sadece o parçanın, paylaşılabilir hâlinin yeniden canlandırması.`,
+    ``,
+    ...sourceBlock,
     ``,
     `TEKNİK`,
-    `- en-boy: ${geo}`,
-    `- süre: ${dur} saniye (saniye saniye uymak zorunda değil, yakını olsun)`,
-    `- kesme ritmi: ${cut}`,
+    `- en-boy: dikey 9:16, 1080x1920 (shorts/reels/tiktok)`,
+    `- süre: ~${clipLen} saniye`,
     `- görsel stil: ${style}`,
     `- anahtar görseller: ${kwLine}`,
-    `- renk paleti: ${isShort ? 'canlı ve doygun, akışta parlasın' : 'sinematik, kontrollü doygunluk, gölgeler derin'}`,
+    `- kesme ritmi: 1-2 saniyede bir kesme, komik anlarda ani duraklama`,
     ``,
-    `SAHNE SAHNE AKIŞ`,
-    ...scenes.map(([a, b, name, desc], i) => `  ${i + 1}. [${t(a)} - ${t(b)}] ${name}: ${desc}`),
+    `SAHNE AKIŞ`,
+    ...scenes.map(([a, b, name, desc], i) => `  ${i + 1}. [${a}-${b} sn] ${name}: ${desc}`),
     ``,
     `KAMERA`,
-    isShort
-      ? '- el kamerası hissi veren hafif titreşim, ani zoom ve whip-pan geçişler, her plan tek odaklı'
-      : '- tripod/ağırlıklı kaydırmalar, geniş açı ile yakın plan arası geçiş, dorukta yavaş kaydırma (slider hissi)',
+    '- el kamerası hissi veren hafif titreşim, ani punch-in zoomlar, donma anında tek kareye kilitlen',
     ``,
     `SES`,
-    `- müzik: ${s.nicheLabel.toLowerCase()} temasına uygun, ${isShort ? 'ilk 1 saniyede vuruşunu vuran, yüksek tempolu' : 'girişte sakin, dorukta yükselen'} bir bed track`,
-    `- efekt: her kesmede yumuşak whoosh, dorukta derin sub-vuruş, kapanışta sesin aniden kesilmesi`,
-    `- diyalog yok; gerekirse 2 kelimeyi geçmeyen alt yazı kartları`,
+    `- açılış: kısa bir sting veya kayıt scratch ile dikkat çek`,
+    `- doruk: yükselen bed vuruşu, anın absürtlüğüyle çatışan ciddi bir ton (komik kontrast)`,
+    `- donma anı: buz/derin sub-vuruş sesi, dünya sesi kesilir`,
+    `- kapanış: döngüye geçen tek vuruş, video başa sarıldığında müzik devam ediyormuş gibi dursun`,
+    `- diyalog yok; gerekirse 2 kelimeyi geçmeyen büyük harf alt yazı`,
     ``,
     `METİN KATMANI`,
-    `- ilk 2 saniyede büyük ve kalın 1 kelimelik vaat (ör. "${(kw[0] || 'izle').toUpperCase()}")`,
-    `- dorukta zaman damgası stili mini etiket`,
-    `- kapanışta ekranda soru işareti, kanal adı YOK`,
+    `- ilk 2 saniyede 1 kelimelik vaat (ör. "${(kw[0] || 'bunu gör').toUpperCase()}")`,
+    `- donma karesinde sadece 1 karelik tepki yazısı (ör. "???")`,
+    `- ekranda kanal adı, QR, filigran YOK`,
     ``,
     `OLUMSUZ (bunları üretme)`,
-    `- filigran, logo, marka işareti, okunamayan yazı karakterleri, fazla uzuv, plastik yüzler, gereksiz kalabalık sahne, sabit ve donmuş kamera`,
+    `- videonun tamamını/konuyu özetleyen uzun sahneler, filigran, logo, okunamayan yazı, fazla uzuv, plastik yüzler, donmuş ve sıkıcı kamera`,
     ``,
     `TEK SATIRLIK ÖZET (hızlı araçlar için)`,
-    `${isShort ? 'dikey' : 'yatay'} ${s.nicheLabel.toLowerCase()} videosu, ${style}, ${cut}, açılışta görsel şok kancası, ortada tek doruk anı, sonda açık uçlu kapanış — "${kwLine}"`,
+    `dikey ${s.nicheLabel.toLowerCase()} short'u, "${kwLine}" konusu, ${style}, başta flash-forward komik kare, ortada kaynak anın (${moments.length ? moments[0].t : 'doruk'}) canlandırılması, sonda donma + döngü`,
   ].join('\n');
 }
 
