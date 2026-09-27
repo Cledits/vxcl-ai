@@ -329,12 +329,109 @@ async function fetchInvidious(videoId) {
   throw new Error('video okunamadi: ' + (lastErr || 'tum yedek sunucular cevap vermedi'));
 }
 
+function extractJsonObject(text, marker) {
+  const idx = text.indexOf(marker);
+  if (idx < 0) return null;
+  const start = text.indexOf('{', idx + marker.length);
+  if (start < 0) return null;
+  const between = text.slice(idx + marker.length, start);
+  if (/[^{}\s=:]/.test(between)) return null;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch (_) {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchWatchPage(videoId) {
+  const r = await fetch('https://www.youtube.com/watch?v=' + videoId + '&hl=en&gl=US', {
+    headers: {
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!r.ok) throw new Error('watch http ' + r.status);
+  const html = await r.text();
+
+  const pr = extractJsonObject(html, 'ytInitialPlayerResponse');
+  const vd = pr && pr.videoDetails;
+  if (!vd || !vd.videoId) {
+    throw new Error(/not a bot/i.test(html) ? 'youtube bot dogrulamasi' : 'watch sayfasi okunamadi');
+  }
+  const mf = (pr.microformat && pr.microformat.playerMicroformatRenderer) || {};
+
+  let likes = null;
+  let subscribers = null;
+  try {
+    const next = await innertube('next', { context: { client: YT }, videoId });
+    for (const btn of collect(next, 'buttonViewModel')) {
+      if (btn.iconName === 'LIKE' && btn.title && likes === null) likes = parseCompact(btn.title);
+    }
+    const sub = collect(next, 'subscriberCountText')[0];
+    if (sub) subscribers = parseCompact(sub.simpleText || (sub.runs || []).map((rr) => rr.text).join(''));
+  } catch (_) {}
+
+  let comments = [];
+  let commentWords = [];
+  try {
+    const c = await fetchComments(videoId);
+    comments = c.comments;
+    commentWords = c.topCommentWords;
+  } catch (_) {}
+
+  const thumbs = (vd.thumbnail && vd.thumbnail.thumbnails) || [];
+  return {
+    title: vd.title || '',
+    channelTitle: vd.author || '',
+    channelId: vd.channelId || '',
+    description: vd.shortDescription || '',
+    tags: vd.keywords || [],
+    thumbnail: thumbs.length ? thumbs[thumbs.length - 1].url : 'https://i.ytimg.com/vi/' + videoId + '/maxresdefault.jpg',
+    published: mf.publishDate ? new Date(mf.publishDate) : new Date(),
+    views: Number(vd.viewCount) || 0,
+    likes,
+    subscribers,
+    durationSec: Number(vd.lengthSeconds) || 0,
+    comments,
+    commentWords,
+  };
+}
+
 async function analyze(videoId) {
   let src;
   try {
     src = await fetchInnertube(videoId);
-  } catch (_) {
-    src = await fetchInvidious(videoId);
+  } catch (e1) {
+    try {
+      src = await fetchWatchPage(videoId);
+    } catch (e2) {
+      try {
+        src = await fetchInvidious(videoId);
+      } catch (e3) {
+        throw new Error('video okunamadi (' + ((e2 && e2.message) || 'watch fail') + ' / ' + ((e3 && e3.message) || 'yedek fail') + ')');
+      }
+    }
   }
 
   const published = src.published && !isNaN(src.published.getTime()) ? src.published : new Date();
