@@ -19,6 +19,14 @@ vxcl.ai Türkçe ve İngilizce olarak çalışır. Temel özellikler ücretsizdi
 2. YouTube video linkini yapıştırın (Ctrl+V)
 3. "Analiz Et" deyin
 
+## Sayfalar
+
+- https://vxcl-ai.onrender.com/ — Türkçe ana sayfa (video analiz aracı)
+- https://vxcl-ai.onrender.com/en — English landing page
+- https://vxcl-ai.onrender.com/blog — blog index (YouTube growth guides)
+- https://vxcl-ai.onrender.com/blog/videosu-neden-tuttu — Bir YouTube Videosu Neden Tutar? 8 Sinyal
+- https://vxcl-ai.onrender.com/blog/youtube-algoritmasi — YouTube Algoritması 2026'da Nasıl Çalışır?
+
 ## Notlar
 
 - Ücretsizdir, kayıt/kredi kartı gerektirmez

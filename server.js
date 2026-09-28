@@ -82,8 +82,16 @@ app.get('/en', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'en.html'));
 });
 
+app.get('/blog', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
+});
+
 app.get('/blog/videosu-neden-tuttu', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'blog', 'videosu-neden-tuttu.html'));
+});
+
+app.get('/blog/youtube-algoritmasi', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'blog', 'youtube-algoritmasi.html'));
 });
 
 app.post('/api/analyze', async (req, res) => {
