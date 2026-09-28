@@ -15,6 +15,17 @@ const YT = { clientName: 'WEB', clientVersion: '2.20250101.00.00' };
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const ua = req.get('user-agent') || '';
+  const isBot = /google|bingbot|yandex|applebot|duckduck|bot|crawler|spider|inspection/i.test(ua);
+  if (isBot || req.path === '/robots.txt' || req.path === '/sitemap.xml') {
+    res.on('finish', () => {
+      console.log(`[req] ${req.method} ${req.path} -> ${res.statusCode} | ua=${ua.slice(0, 120)} | cf=${req.get('cf-connecting-ip') || '-'} | ip=${req.ip}`);
+    });
+  }
+  next();
+});
+
 app.get('/robots.txt', (req, res) => {
   res.set('Cache-Control', 'no-store, max-age=0');
   res.type('text/plain').send(
