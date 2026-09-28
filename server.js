@@ -74,6 +74,18 @@ a{color:var(--acc)}
 </div></body></html>`);
 });
 
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+
+app.get('/en', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'en.html'));
+});
+
+app.get('/blog/videosu-neden-tuttu', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'blog', 'videosu-neden-tuttu.html'));
+});
+
 app.post('/api/analyze', async (req, res) => {
   try {
     const { idToken, url } = req.body || {};
