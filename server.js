@@ -15,15 +15,28 @@ const YT = { clientName: 'WEB', clientVersion: '2.20250101.00.00' };
 
 app.use(express.json());
 
+const botLog = [];
+const BOTLOG_KEY = process.env.BOTLOG_KEY || 'vxcl-ops-2026';
+
 app.use((req, res, next) => {
   const ua = req.get('user-agent') || '';
-  const isBot = /google|bingbot|yandex|applebot|duckduck|bot|crawler|spider|inspection/i.test(ua);
+  const isBot = /google|bingbot|yandex|applebot|duckduck|bot|crawler|spider|inspection|curl|python|wget|headless/i.test(ua);
   if (isBot || req.path === '/robots.txt' || req.path === '/sitemap.xml') {
     res.on('finish', () => {
-      console.log(`[req] ${req.method} ${req.path} -> ${res.statusCode} | ua=${ua.slice(0, 120)} | cf=${req.get('cf-connecting-ip') || '-'} | ip=${req.ip}`);
+      const line = { t: new Date().toISOString(), m: req.method, p: req.path + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''), s: statusCodeSafe(res), ua: ua.slice(0, 160), cf: req.get('cf-connecting-ip') || '-', ip: req.ip };
+      botLog.push(line);
+      if (botLog.length > 300) botLog.shift();
+      console.log(`[req] ${line.m} ${line.p} -> ${line.s} | ua=${line.ua} | cf=${line.cf} | ip=${line.ip}`);
     });
   }
   next();
+});
+
+function statusCodeSafe(res) { return res.statusCode; }
+
+app.get('/internal/botlog', (req, res) => {
+  if (req.query.key !== BOTLOG_KEY) return res.status(404).send('nope');
+  res.set('Cache-Control', 'no-store').json(botLog);
 });
 
 app.get('/robots.txt', (req, res) => {
