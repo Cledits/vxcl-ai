@@ -371,3 +371,37 @@ $('vgen-copy').addEventListener('click', async () => {
   }
   setTimeout(() => (btn.textContent = 'Kopyala'), 1500);
 });
+
+demo-fill.addEventListener('click', () => {
+  url.value = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
+  url.focus();
+});
+
+share-link.addEventListener('click', async () => {
+  const u = url.value.trim();
+  const status = scan-status;
+  if (!u) {
+    status.className = 'status';
+    status.textContent = 'önce bir video linki yapýþtýr';
+    return;
+  }
+  const link = location.origin + '/?url=' + encodeURIComponent(u);
+  try {
+    await navigator.clipboard.writeText(link);
+    status.className = 'status info';
+    status.textContent = 'analiz linki kopyalandý — istediðin yere yapýþtýr';
+  } catch (_) {
+    status.className = 'status';
+    status.textContent = link;
+  }
+});
+
+(function deepLink() {
+  try {
+    const u = new URLSearchParams(location.search).get('url');
+    if (u && /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(u)) {
+      url.value = u;
+      scan-form.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+  } catch (_) {}
+})();

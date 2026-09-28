@@ -687,3 +687,11 @@ footer .copy { margin-top: 14px; font-size: 12px; }
   line-height: 1.7;
   font-size: 15px;
 }
+
+.hero-tools {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
