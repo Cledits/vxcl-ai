@@ -14,6 +14,14 @@ const oauth = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 const YT = { clientName: 'WEB', clientVersion: '2.20250101.00.00' };
 
 app.use(express.json());
+
+app.get('/robots.txt', (req, res) => {
+  res.set('Cache-Control', 'no-store, max-age=0');
+  res.type('text/plain').send(
+    'User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://vxcl-ai.onrender.com/sitemap.xml\n'
+  );
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/config', (req, res) => {
@@ -92,6 +100,14 @@ app.get('/blog/videosu-neden-tuttu', (req, res) => {
 
 app.get('/blog/youtube-algoritmasi', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'blog', 'youtube-algoritmasi.html'));
+});
+
+app.get('/blog/youtube-analizi-nasil-yapilir', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'blog', 'youtube-analizi-nasil-yapilir.html'));
+});
+
+app.get('/blog/youtube-izlenme-sorgulama', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'blog', 'youtube-izlenme-sorgulama.html'));
 });
 
 app.post('/api/analyze', async (req, res) => {

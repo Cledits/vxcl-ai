@@ -26,6 +26,8 @@ vxcl.ai Türkçe ve İngilizce olarak çalışır. Temel özellikler ücretsizdi
 - https://vxcl-ai.onrender.com/blog — blog index (YouTube growth guides)
 - https://vxcl-ai.onrender.com/blog/videosu-neden-tuttu — Bir YouTube Videosu Neden Tutar? 8 Sinyal
 - https://vxcl-ai.onrender.com/blog/youtube-algoritmasi — YouTube Algoritması 2026'da Nasıl Çalışır?
+- https://vxcl-ai.onrender.com/blog/youtube-analizi-nasil-yapilir — YouTube Analizi Nasıl Yapılır? Adım Adım Rehber
+- https://vxcl-ai.onrender.com/blog/youtube-izlenme-sorgulama — YouTube İzlenme Sorgulama Rehberi
 
 ## Notlar
 
